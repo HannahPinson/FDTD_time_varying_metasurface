@@ -26,61 +26,69 @@ public:
 	double gradient, offset;
 };
 
-/*class Time_Variation_Sigma{
-public:
-	Time_Variation_Sigma(Linear_Time_Variation* t0_functor_, double& a_, double& total_ksi_factor_): t0_functor(t0_functor_), a(a_), total_ksi_factor(total_ksi_factor_){;};
-	double operator() (double time) {
-		double t0 = (*(t0_functor))(time);
-		double log_factor = log(1/a);
-		double sin_factor = sin(M_PI * time / t0);
-		double cos_factor = cos(M_PI * time / t0);
-		double exp_factor = exp(-log_factor * time / t0);
-		double total = (4/t0 * exp_factor * cos_factor + (log_factor * sin_factor / M_PI))*total_ksi_factor;
-		if (time>0)
-			return total;
-		else
-			return 0;
-	}
-	Linear_Time_Variation* t0_functor;
-	double a, total_ksi_factor;
-
-};*/
-
-class Sigma_m_resonances{
+class Sigma_ADE{
 
 public:
-	Sigma_m_resonances(Linear_Time_Variation* t0_functor_, double& a_, int m_, double& total_ksi_factor_, double& onset_, double& offset_): t0_functor(t0_functor_), a(a_), m(m_), total_ksi_factor(total_ksi_factor_), onset(onset_), offset(offset_){;};
-
-	double operator() (double time, double tau) {
-
-		double shifted_time = time-onset;
-
-		if ((shifted_time)>0 && (time < offset)){ //heaviside theta
-			double t0 = (*(t0_functor))(shifted_time);
-			double sum = 0;
-			/*for (int i = 0; i < m; i++){
-				double sin_i = sin( (2*i + 1) * M_PI * tau / t0);
-				double cos_i = cos( (2*i + 1) * M_PI * tau / t0);
-				double factor_i = log(1/a) / ((2*i + 1)*M_PI);
-				sum += cos_i + (factor_i * sin_i);
-			}
-			double total = (4/t0 * exp(-log(1/a) * tau / t0) * sum *total_ksi_factor);
-			return total;*/
-			double b = 1 * pow(10,-12);
-			for (int i = 0; i < m; i++){
-				sum += pow(-a,i) / (M_PI*b) * 1/(1 + ((tau - i*t0)/b)*(tau - i*t0)/b);
-			}
-			return sum;
+	Sigma_ADE(int& m, double& a, double total_ksi_factor, Linear_Time_Variation* t0_functor):
+		_m(m), _a(a), _total_ksi_factor(total_ksi_factor), _t0_functor(t0_functor){
+		for (int i = 0; i < m; i++){
+			_Q_past.push_back(0);
+			_Q_current.push_back(0);
+			_Q_future.push_back(0);
 		}
-		else{
-			return 0;
+	}
+
+	/**
+	 * calculate the next values of Q by solving the ADE.
+	 * @param field_value : electric or magnetic field value
+	 * @param delta_t
+	 * @param timestep : integer or half integer value
+	 */
+
+	void calculate_next(double& field_value, double& delta_t, double& timestep){
+		double t0 = (*(_t0_functor))(delta_t*timestep);
+		//cout << "t0: " << t0 << endl;
+		double f = 4/t0;
+		double gamma = -1/t0 * log(_a);
+		for (int i = 0; i < _m ; i++){
+			cout << "--------------------" << endl;
+			double omega_0 = sqrt(pow( log(_a)/t0 ,2) + pow( (2*i+1)*M_PI/t0 ,2));
+			double first_factor =  f * pow(delta_t,2) / (1+gamma*delta_t); // f^2 ????
+			cout << "first factor: " << first_factor << endl;
+			double second_factor = (2 - pow(delta_t,2) * pow(omega_0,2)) / (1+gamma*delta_t);
+			cout << "second factor: " << second_factor << endl;
+			double third_factor = (1-gamma*delta_t) / (1+gamma*delta_t) ;
+			cout << "third factor: " << third_factor << endl;
+			_Q_future[i] = first_factor * field_value + second_factor * _Q_current[i] + third_factor * _Q_past[i];
+			cout << "_Q_future: " << _Q_future[i] << endl;
 		}
 
 	}
-	Linear_Time_Variation* t0_functor;
-	double a, total_ksi_factor;
-	double onset, offset;
-	int m;
+
+	double calculate_J_term(){
+		double result = 0;
+		for (int i = 0; i < _m ; i++){
+			result += _Q_future[i] - _Q_current[i];
+		}
+		swap_vectors();
+		return _total_ksi_factor * result;
+	}
+
+private:
+	int _m; // number of resonances (time domain) / number of Lorentzian poles (frequency domain)
+	vector <double> _Q_past, _Q_current, _Q_future;
+	double _a, _total_ksi_factor;
+	Linear_Time_Variation* _t0_functor;
+
+	/**
+	 * Q_current |--> Q_future
+	 * Q_past |--> Q_current
+	 * Q_future contains past values and can be overwritten in next update.
+	 */
+	void swap_vectors(){
+		swap(_Q_current, _Q_future);
+		swap(_Q_future, _Q_past);
+	}
 
 };
 
@@ -134,17 +142,18 @@ public:
 
 class Dispersive_Metasurface{
 public:
-	Dispersive_Metasurface(int node_, Sigma_m_resonances sigma_functor_e_, Sigma_m_resonances sigma_functor_h_, double& eps_, double& mu_):
+	Dispersive_Metasurface(int node_, Sigma_ADE sigma_functor_e_, Sigma_ADE sigma_functor_h_, double& eps_, double& mu_):
 		node(node_), sigma_functor_e(sigma_functor_e_), sigma_functor_h(sigma_functor_h_), eps(eps_), mu(mu_){};
 
 	int node;
 	int eps;
 	int mu;
 
-	Sigma_m_resonances sigma_functor_e, sigma_functor_h;
+	Sigma_ADE sigma_functor_e, sigma_functor_h;
 
-	vector<double> saved_e;
-	vector<double> saved_h;
+
+	/*vector<double> saved_e;
+	vector<double> saved_h;*/
 };
 
 
