@@ -109,15 +109,17 @@ private:
 
 	//methods for performing the simulation
 
-	double calculate_convolution_term_e(int q, Dispersive_Metasurface& sheet);
-	double calculate_convolution_term_h(int q, Dispersive_Metasurface& sheet);
+	/*double calculate_convolution_term_e(int q, Dispersive_Metasurface& sheet);
+	double calculate_convolution_term_h(int q, Dispersive_Metasurface& sheet);*/
 
-	void apply_source(int& timestep, vector <double>& field, Source& source);
+	void apply_source(double& timestep, vector <double>& field, Source& source);
 
-    void update_magnetic_once(int& timestep);
-    void update_electric_once(int& timestep);
-    void update_system_once(int& timestep);
+    void update_magnetic_once(double& timestep);
+    void update_electric_once(double& timestep);
+    void update_system_once(double& timestep);
 
+    ofstream* file_Q_electric;
+    ofstream* file_Q_magnetic;
 
     // methods to write the output to files
 
