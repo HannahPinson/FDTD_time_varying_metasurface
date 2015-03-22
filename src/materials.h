@@ -58,19 +58,19 @@ public:
 		if ((shifted_time)>0 && (time < offset)){ //heaviside theta
 			double t0 = (*(t0_functor))(shifted_time);
 			double sum = 0;
-			/*for (int i = 0; i < m; i++){
+			for (int i = 0; i < m; i++){
 				double sin_i = sin( (2*i + 1) * M_PI * tau / t0);
 				double cos_i = cos( (2*i + 1) * M_PI * tau / t0);
 				double factor_i = log(1/a) / ((2*i + 1)*M_PI);
 				sum += cos_i + (factor_i * sin_i);
 			}
 			double total = (4/t0 * exp(-log(1/a) * tau / t0) * sum *total_ksi_factor);
-			return total;*/
-			double b = 1 * pow(10,-12);
+			return total;
+			/*double b = 1 * pow(10,-12);
 			for (int i = 0; i < m; i++){
 				sum += pow(-a,i) / (M_PI*b) * 1/(1 + ((tau - i*t0)/b)*(tau - i*t0)/b);
 			}
-			return sum;
+			return sum;*/
 		}
 		else{
 			return 0;

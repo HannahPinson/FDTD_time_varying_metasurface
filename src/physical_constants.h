@@ -11,11 +11,9 @@
 #include <cmath>
 #define _USE_MATH_DEFINES //M_PI = pi
 
-double c = 299792458;
-double imp0 = 377.0; //impedance of free space = sqrt(mu_0/epsilon_0)
 double mu_0 = 4*M_PI*1/pow(10.0,7);
 double eps_0 = 8.85 * 1/pow(10.0,12);
-
-
+double imp0 = sqrt(mu_0/eps_0);
+double c = 1/sqrt(mu_0*eps_0);;
 
 #endif /* PHYSICAL_CONSTANTS_H_ */

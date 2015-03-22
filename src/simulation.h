@@ -121,6 +121,9 @@ private:
 
     // methods to write the output to files
 
+    ofstream* Q_electric;
+    ofstream* Q_magnetic;
+
 	string generate_filename(int number, string field);
 
 	ofstream* generate_file(string basename);
