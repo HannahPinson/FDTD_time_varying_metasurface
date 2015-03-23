@@ -17,8 +17,9 @@ double lower_value_limit = pow(10.0,-50); //smaller values are taken to be zero
 
 Simulation::Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, double (*init_func_)(int dim_grid, int x)):
 																																				dimension(dimension_), name(name_), S_c(S_c_), type_of_BDC(type_of_BDC_), delta_t(delta_t_), source_e(standard_no_source), source_h(standard_no_source) {
-	file_Q_magnetic = new ofstream("/Users/Hannah_Pinson/Documents/vub/FDTD_TimeDependent_Metasurface/progress/test_ADE_staggered/Q_magnetic.txt", std::ios::app);
-	file_Q_electric = new ofstream("/Users/Hannah_Pinson/Documents/vub/FDTD_TimeDependent_Metasurface/progress/test_ADE_staggered/Q_electric.txt", std::ios::app);
+
+	 Q_electric = new ofstream ("/Users/Hannah_Pinson/Documents/vub/FDTD_TimeDependent_Metasurface/progress/test_ADE_staggered/Q_electric.txt", std::ios::app);
+	 Q_magnetic = new ofstream ("/Users/Hannah_Pinson/Documents/vub/FDTD_TimeDependent_Metasurface/progress/test_ADE_staggered/Q_magnetic.txt", std::ios::app);
 
 	/*initialization of e and h*/
 	for (int i = 0; i < dimension; i++){  /* number of magnetic nodes = number of electric nodes - 1; in this way the grid ends at both sides with an electric node (so e.g. the boundary conditions can be PEC at both sides)*/
@@ -73,7 +74,7 @@ void Simulation::add_metasurfaces(vector <Dispersive_Metasurface>& metasurfaces_
 
 void Simulation::update_magnetic_once(double& timestep){
 
-	double q = timestep; //+ 0.5;
+	double q = timestep + 0.5;
 
 	//first update Q according to ADE with current value of the magnetic field
 	if (metasurfaces.size() != 0){
@@ -85,19 +86,18 @@ void Simulation::update_magnetic_once(double& timestep){
 
 	//update all nodes, without current terms
 	for (int i = 0; i < dimension-1; i++){     //loop from 0 to size-1 : there exists no node[dimension] for the h-field (to make the grid end with an electric node, see: constructor of simulation)
-		h[i] = ch_h[i] * h[i] + ch_e[i] * (e[i + 1] - e[i]) ;} // staggered scheme
+		h[i] = ch_h[i] * h[i] + ch_e[i] * (e[i + 1] - e[i]) ;}
+
 
 	//add current terms
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){ //for all metasurfaces present
 			int location = metasurfaces.at(sheet_number).node;
-			double J = metasurfaces.at(sheet_number).sigma_functor_h.calculate_J_term() /mu_0;
-			value_to_file(J, file_Q_magnetic);
-			h.at(location) -= J;
-			cout << "subtracted from sheet * imp0: " << J * imp0 << endl;
-			cout << "h at sheet * imp0: " << h.at(location) * imp0 << endl;
-			cout << "_______________" << endl;
-			//cout << metasurfaces.at(sheet_number).sigma_functor_h.calculate_J_term()/mu_0 << endl;
+			double J = metasurfaces.at(sheet_number).sigma_functor_h.calculate_J_term()/mu_0;
+			h.at(location) += J;
+			value_to_file(J, Q_magnetic);
+			cout << "subtracted from magnetic sheet * imp0: " << J * imp0 << endl;
+			cout << "magnetic field at sheet * imp0: " << h.at(location) * imp0 << endl;
 		}
 	}
 }
@@ -116,19 +116,17 @@ void Simulation::update_electric_once(double& timestep){
 
 	//update all nodes, without current terms
 	for (int i = 1; i < dimension-1; i++){ // loop from 1 to size-1 : outer nodes are used for boundary conditions
-		e[i] = (ce_e[i] * e[i]) +  (ce_h[i] * (h[i] - h[i - 1]));} //staggered scheme
-
+		e[i] = (ce_e[i] * e[i]) +  (ce_h[i] * (h[i] - h[i - 1]));}
 
 	//add current terms
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){ //for all metasurfaces present
 			int location = metasurfaces.at(sheet_number).node;
-			double J = metasurfaces.at(sheet_number).sigma_functor_e.calculate_J_term() / eps_0;
-			value_to_file(J, file_Q_electric);
-			e.at(location) -= J;
-			cout << "subtracted from sheet: " << J << endl;
-			cout << "e at sheet: " << e.at(location) << endl;
-			cout << "_______________" << endl;
+			double J = metasurfaces.at(sheet_number).sigma_functor_e.calculate_J_term()/eps_0;
+			e.at(location) += J;
+			cout << "subtracted from electric sheet: " << J << endl;
+			cout << "electric field at sheet: " << e.at(location) << endl;
+			value_to_file(J, Q_electric);
 		}
 	}
 }
@@ -169,7 +167,6 @@ void Simulation::update_system_once(double& timestep){
 
 	apply_source(timestep, e, source_e);
 	update_electric_once(timestep);
-	//timestep += 0.5;
 	apply_source(timestep, h, source_h);
 	update_magnetic_once(timestep);
 }
@@ -325,9 +322,7 @@ int main(){
 
 	Gaussian_packet_functor gaussian_packet(S_c, N_lambda, delay, width, amplitude_factor);
 	Source gaussian_source_e(source_position, source_type, &gaussian_packet);
-	Gaussian_packet_functor gaussian_packet_h(S_c, N_lambda, delay, width, amplitude_factor/imp0);
-	Source gaussian_source_h(source_position, source_type, &gaussian_packet_h);
-	//Source no_source_h = standard_no_source;
+	Source no_source_h = standard_no_source;
 
 
 
@@ -360,15 +355,16 @@ int main(){
 
 	//functors for time-varying conductivities
 
-	int m = 5;//res[m_index]; //number of resonances
-	double g = 0.09;//gamma[g_index];
-	double a = 0.85;//a_array[a_index];
+	int m = 1;//res[m_index]; //number of resonances
+	double g = 0.5;//gamma[g_index];
+	double a = 0.75;//a_array[a_index];
 
-	double beta = T*2; //?????
+	double beta = T*0.2;
 	Linear_Time_Variation t0_functor(g, beta);
 
-	double ksi_factor_e = 2/imp0 / delta_x * delta_t;
-	double ksi_factor_h = 2*imp0 / delta_x * delta_t;
+
+	double ksi_factor_e = 1000 * 2 / imp0;
+	double ksi_factor_h = 1000 * 2 * imp0;
 
 	Sigma_ADE sigma_e(m, a, ksi_factor_e, &t0_functor);
 	Sigma_ADE sigma_h(m, a, ksi_factor_h, &t0_functor);
@@ -383,16 +379,13 @@ int main(){
 
 	//constructing free space simulation object & setup
 	Simulation free_space("free_space_test", dimension, S_c, delta_t, "ABC", &all_zero);
-	free_space.static_setup(gaussian_source_e, gaussian_source_h, static_layers);
+	free_space.static_setup(gaussian_source_e, no_source_h, static_layers);
 
 	//constructing metasurface simulation object & setup
 	string name = "test";//"res_" + convert_to_string(m) + "_gamma_" + convert_to_string(g) + "_a_" + convert_to_string(a);
 	Simulation metasurface(name, dimension, S_c, delta_t, "ABC", &all_zero);
-	metasurface.static_setup(gaussian_source_e, gaussian_source_h, static_layers);
+	metasurface.static_setup(gaussian_source_e, no_source_h, static_layers);
 	metasurface.add_metasurfaces(metasurfaces);
-
-
-	//metasurface.add_metasurfaces(metasurfaces);
 
 
 	//ÑÑÑÑÑ simulate
@@ -418,7 +411,7 @@ int main(){
 		clock_t start;
 		start = clock();
 
-		double timesteps = 25000 * grid_scaling / S_c ;
+		double timesteps = 30000 * grid_scaling / S_c ;
 		metasurface.simulate(timesteps, output_path, snapshotmodulo_electric, snapshotmodulo_magnetic, sample_nodes_e, no_sample_nodes_h);
 		free_space.simulate(timesteps, output_path, snapshotmodulo_electric, snapshotmodulo_magnetic, sample_nodes_e, no_sample_nodes_h);
 		double diff = ( clock() - start ) / (double) CLOCKS_PER_SEC;

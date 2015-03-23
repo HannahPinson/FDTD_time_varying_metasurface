@@ -32,15 +32,16 @@ class Sigma_ADE{
 public:
 	Sigma_ADE(int& m, double& a, double total_ksi_factor, Linear_Time_Variation* t0_functor):
 		_m(m), _a(a), _total_ksi_factor(total_ksi_factor), _t0_functor(t0_functor){
-		vector<double> Q_initial = vector<double>(_m, 0);
-		_Q_future = Q_initial;
-		_Q_past =  Q_initial;
-		_Q_current =  Q_initial;
+		for (int i = 0; i < m; i++){
+			_Q_past.push_back(0);
+			_Q_current.push_back(0);
+			_Q_future.push_back(0);
+		}
 	}
 
 	/**
 	 * calculate the next values of Q by solving the ADE.
-	 * @param field_value : electric of magnetic field value
+	 * @param field_value : electric or magnetic field value
 	 * @param delta_t
 	 * @param timestep : integer or half integer value
 	 */
@@ -48,23 +49,19 @@ public:
 	void calculate_next(double& field_value, double& delta_t, double& timestep){
 		double t0 = (*(_t0_functor))(delta_t*timestep);
 		//cout << "t0: " << t0 << endl;
-		double f = 4./t0;
-		double gamma = -1./t0 * log(_a);
+		double f = 4/t0;
+		double gamma = -1/t0 * log(_a);
 		for (int i = 0; i < _m ; i++){
-
+			cout << "--------------------" << endl;
 			double omega_0 = sqrt(pow( log(_a)/t0 ,2) + pow( (2*i+1)*M_PI/t0 ,2));
-			double first_factor =  _total_ksi_factor * f * pow(delta_t,2) / (1 + gamma*delta_t); // f^2 ????
-			double second_factor = (2 - pow(delta_t,2) * pow(omega_0,2)) / (1 + gamma*delta_t);
-			double third_factor = (gamma*delta_t - 1) / (gamma*delta_t + 1) ;
-			_Q_future[i] =  first_factor * field_value + second_factor * _Q_current[i] + third_factor * _Q_past[i];
-			/*cout << "--------------------" << endl;
+			double first_factor =  _total_ksi_factor * f * pow(delta_t,2) / (1+gamma*delta_t); // f^2 ????
 			cout << "first factor: " << first_factor << endl;
+			double second_factor = (2 - pow(delta_t,2) * pow(omega_0,2)) / (1+gamma*delta_t);
 			cout << "second factor: " << second_factor << endl;
+			double third_factor = (gamma*delta_t - 1 ) / (1+gamma*delta_t) ;
 			cout << "third factor: " << third_factor << endl;
+			_Q_future[i] = first_factor * field_value + second_factor * _Q_current[i] + third_factor * _Q_past[i];
 			cout << "_Q_future: " << _Q_future[i] << endl;
-			cout << "_Q_current: " << _Q_current[i] << endl;
-			cout << "_Q_past: " << _Q_past[i] << endl;*/
-
 		}
 
 	}
@@ -74,7 +71,7 @@ public:
 		for (int i = 0; i < _m ; i++){
 			result += _Q_future[i] - _Q_current[i];
 		}
-		advance_vectors();
+		swap_vectors();
 		return result;
 	}
 
@@ -85,10 +82,13 @@ private:
 	Linear_Time_Variation* _t0_functor;
 
 	/**
+	 * Q_current |--> Q_future
+	 * Q_past |--> Q_current
+	 * Q_future contains past values and can be overwritten in next update.
 	 */
-	void advance_vectors(){
-		_Q_past = _Q_current;
-		_Q_current = _Q_future;
+	void swap_vectors(){
+		swap(_Q_current, _Q_future);
+		swap(_Q_future, _Q_past);
 	}
 
 };

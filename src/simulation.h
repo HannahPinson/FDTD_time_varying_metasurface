@@ -118,12 +118,13 @@ private:
     void update_electric_once(double& timestep);
     void update_system_once(double& timestep);
 
-    ofstream* file_Q_electric;
-    ofstream* file_Q_magnetic;
 
     // methods to write the output to files
 
 	string generate_filename(int number, string field);
+
+    ofstream* Q_electric;
+    ofstream* Q_magnetic;
 
 	ofstream* generate_file(string basename);
 	vector<ofstream*> generate_node_output_files(string output_path, vector<int>& readout_nodes, string field);
