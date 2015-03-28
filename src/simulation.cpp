@@ -111,9 +111,10 @@ void Simulation::update_magnetic_once(double& timestep){
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){ //for all metasurfaces present
 			int location = metasurfaces.at(sheet_number).node;
+			if (timestep > 0)
+				h.at(location) += calculate_convolution_term_h(timestep, metasurfaces.at(sheet_number)); // minus sign in coefficient of calculation
 			double local_field = (h.at(location-1) + h.at(location)) / 2;
 			metasurfaces.at(sheet_number).saved_h.push_back(local_field); //save local field
-			h.at(location) += calculate_convolution_term_h(timestep, metasurfaces.at(sheet_number)); // minus sign in coefficient of calculation
 		}
 	}
 
@@ -134,9 +135,10 @@ void Simulation::update_electric_once(double& timestep){
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){
 			int location = metasurfaces.at(sheet_number).node;
+			if (timestep > 0)
+				e.at(location) += calculate_convolution_term_e(timestep, metasurfaces.at(sheet_number));
 			double local_field = (e.at(location) + e.at(location+1)) / 2;
 			metasurfaces.at(sheet_number).saved_e.push_back(local_field); //save local field
-			e.at(location) += calculate_convolution_term_e(timestep, metasurfaces.at(sheet_number));
 		}
 	}
 }
@@ -201,7 +203,7 @@ void Simulation::simulate(int total_timesteps,string output_path, int snapshotmo
 	int frame_electric = 0;
 	int frame_magnetic = 0;
 
-	for (int time = 1; time < total_timesteps; time++) {
+	for (int time = 0; time < total_timesteps; time++) {
 
 		update_system_once(time);
 

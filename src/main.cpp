@@ -40,7 +40,7 @@ int main(){
 	double delta_t = 1*pow(10.0, -12)/grid_scaling; //! - delta_t: discrete unit of time, in seconds
 	double delta_x = c*delta_t/S_c; //! - delta_x: discrete unit of space, in meter
 	int zones = 12; //! - zones: number of zones in simulation, used for easy specification of positions
-	int nodes_per_zone = 1000 * grid_scaling; //! - nodes_per_zone: nodes per zone, used for changing the number of nodes without changing relative positions of materials and sources
+	int nodes_per_zone = 500 * grid_scaling; //! - nodes_per_zone: nodes per zone, used for changing the number of nodes without changing relative positions of materials and sources
 	int dimension = zones*nodes_per_zone; //! - dimension: total number of spatial nodes
 
 
