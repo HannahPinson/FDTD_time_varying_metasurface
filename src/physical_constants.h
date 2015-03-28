@@ -11,9 +11,9 @@
 #include <cmath>
 #define _USE_MATH_DEFINES //M_PI = pi
 
-double mu_0 = 4*M_PI*1/pow(10.0,7);
-double eps_0 = 8.85 * 1/pow(10.0,12);
-double imp0 = sqrt(mu_0/eps_0);
-double c = 1/sqrt(mu_0*eps_0);;
+const double mu0 = 4*M_PI*1/pow(10.0,7);
+const double eps0 = 8.85419 * 1/pow(10.0,12);
+const double imp0 = sqrt(mu0/eps0);  // +- 377
+const double c = 1/sqrt(mu0*eps0);
 
 #endif /* PHYSICAL_CONSTANTS_H_ */

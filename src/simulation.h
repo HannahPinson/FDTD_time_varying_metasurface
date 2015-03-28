@@ -11,20 +11,13 @@
 #ifndef SIMULATION_H_
 #define SIMULATION_H_
 
-
 #include <string>
-#include <iostream>
-#include <sstream>
-#include <fstream>
 
 #include "sources.h"
 #include "materials.h"
-#include "initialization_values.h"
-
+#include "physical_constants.h"
 
 using namespace std;
-
-
 
 
 
@@ -35,12 +28,11 @@ class Simulation{
 
 public:
 
-    //!Constructor. Initializes the fields; initializes all update coefficients to free space values.
+	//simulation constructor
+    //! Initializes the fields to zero; initializes all update coefficients to free space values.
     /*! number of magnetic nodes = number of electric nodes - 1;
      * in this way the grid ends at both sides with an electric node (so e.g., the boundary conditions can be PEC at both sides)
      *
-     * The fields are initialized (i.e., set to certain values before the simulation starts) by making use of an initialization
-     * function, passed as a pointer. "initialization_value.h" contains the predefined (pointers to the) functions standing_wave and all_zero.
      *
      * \param name: name of the simulation, used for generating output filenames
      * \param dimension: total number of spatial nodes
@@ -48,22 +40,25 @@ public:
      * \param delta_t :  discrete unit of time; delta_x follows from choice of S_c and delta_t
      * \param type_of_BDC: type of boundary condition, apart from PMLs. "ABC" = absorbing boundary condition, "PEC" = perfect electric conductor
      *  */
-    Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, double (*init_func_)(int dim_grid, int x));
+    Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, Source source_e_, Source source_h_);
 
+    //static setup
     //! adds Source objects and a vector of Static_Material objects (3D materials); sets update coefficients at material nodes to correct values
     /*!
      * \param source_e: Source object containing the information of the (analytical) source signal for the E field
      * \param source_h: Source object containing the information of the (analytical) source signal for the H field
      * \param static_layers: vector containing Static_Material objects, i.e., the 3D non time-dependent materials such as PML's
      */
-    void static_setup(Source& source_e, Source& source_h, vector <Static_Material>& static_layers);
+    void static_setup(vector <Static_Material>& static_layers);
 
+    //add metasurfaces
     //! adds a vector of Dispersive_Metasurface Objects to the simulation, containing the information about the metasurfaces with time-dependent conductivity
     /*!
      * \param metasurfaces: vector containing Dispersive_Metasurface objects, i.e. the 2D materials with time-dependent conductivity
      */
     void add_metasurfaces(vector <Dispersive_Metasurface>& metasurfaces);
 
+    //simulate
     //! Performs the simulation, with different output options for the generated data.
     /*!
      * - Data can be saved in the form of snapshots (i.e., saving the values of all spatial nodes at certain timesteps)
@@ -90,9 +85,9 @@ public:
 private:
     string name;
     int dimension;
-    double S_c;
+    double S_c; //counrant number
     double delta_t;
-    string type_of_BDC;
+    string type_of_BDC; //type of boundary condition (condition on the last nodes of the grid)
 
     Source source_e;
     Source source_h;
@@ -103,35 +98,21 @@ private:
 	vector <Static_Material> static_layers;
 	vector <Dispersive_Metasurface> metasurfaces;
 
- 	vector <double> ce_e, ce_h; //electric-field update coefficients for the e- and h-terms of the update equation
-	vector <double> ch_e, ch_h; //magnetic-field update coefficients for the e- and h-terms of the update equation
+ 	vector <double> ce_e, ce_h; //electric field update coefficients for the e- and h-terms of the update equation
+	vector <double> ch_e, ch_h; //magnetic field update coefficients for the e- and h-terms of the update equation
 
 
 	//methods for performing the simulation
 
-	double calculate_convolution_term_e(int q, Dispersive_Metasurface& sheet);
-	double calculate_convolution_term_h(int q, Dispersive_Metasurface& sheet);
+	double calculate_convolution_term_e(double q, Dispersive_Metasurface& sheet);
+	double calculate_convolution_term_h(double q, Dispersive_Metasurface& sheet);
 
-	void apply_source(int& timestep, vector <double>& field, Source& source);
+	void apply_source(double& timestep, vector <double>& field, Source& source);
 
-    void update_magnetic_once(int& timestep);
-    void update_electric_once(int& timestep);
+    void update_magnetic_once(double& timestep);
+    void update_electric_once(double& timestep);
     void update_system_once(int& timestep);
 
-
-    // methods to write the output to files
-
-    ofstream* Q_electric;
-    ofstream* Q_magnetic;
-
-	string generate_filename(int number, string field);
-
-	ofstream* generate_file(string basename);
-	vector<ofstream*> generate_node_output_files(string output_path, vector<int>& readout_nodes, string field);
-	ofstream* generate_snapshot_file(string output_path, int framenumber, string field);
-
-	void value_to_file(double& value, ofstream* file);
-	void data_to_snapshot_file(ofstream* file, string field);
 
 };
 
