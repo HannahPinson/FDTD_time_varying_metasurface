@@ -12,6 +12,7 @@
 #define SIMULATION_H_
 
 #include <string>
+#include <fstream>
 
 #include "sources.h"
 #include "materials.h"
@@ -83,6 +84,11 @@ public:
 
 
 private:
+
+    ofstream* J_E_file = new ofstream("/Users/Hannah_Pinson/Desktop/FDTD_metasurface_proper/clean_convolution/JE.txt");
+    ofstream* J_H_file = new ofstream("/Users/Hannah_Pinson/Desktop/FDTD_metasurface_proper/clean_convolution/JH.txt");
+
+
     string name;
     int dimension;
     double S_c; //counrant number

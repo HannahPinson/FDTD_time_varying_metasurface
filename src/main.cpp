@@ -5,13 +5,15 @@
  *      Author: Hannah_Pinson
  */
 
-
-
 #include <time.h>
 #include <iostream>
+#include <sstream>
+#include <fstream>
 
 #include "simulation.h"
 #include "physical_constants.h"
+
+using namespace std;
 
 
 
@@ -38,7 +40,7 @@ int main(){
 	double delta_t = 1*pow(10.0, -12)/grid_scaling; //! - delta_t: discrete unit of time, in seconds
 	double delta_x = c*delta_t/S_c; //! - delta_x: discrete unit of space, in meter
 	int zones = 12; //! - zones: number of zones in simulation, used for easy specification of positions
-	int nodes_per_zone = 500 * grid_scaling; //! - nodes_per_zone: nodes per zone, used for changing the number of nodes without changing relative positions of materials and sources
+	int nodes_per_zone = 1000 * grid_scaling; //! - nodes_per_zone: nodes per zone, used for changing the number of nodes without changing relative positions of materials and sources
 	int dimension = zones*nodes_per_zone; //! - dimension: total number of spatial nodes
 
 
@@ -78,7 +80,9 @@ int main(){
 
 	Gaussian_packet_functor gaussian_packet(S_c, N_lambda, delay, width, amplitude_factor);
 	Source gaussian_source_e(source_position, source_type, &gaussian_packet);
-	//Source no_source_h = standard_no_source;
+
+	/*No_source_functor no_source_functor;
+	Source no_source_h(source_position, source_type, &no_source_functor);*/
 
 	Gaussian_packet_functor gaussian_packet_h(S_c, N_lambda, delay, width, amplitude_factor/imp0);
 	Source gaussian_source_h(source_position, source_type, &gaussian_packet_h);
@@ -89,10 +93,10 @@ int main(){
 
 	//functors for time-varying conductivities
 
-	int m = 2;
+	int m = 5;
 	double gamma = 0.05;
 	double a = 0.7;
-	double beta = 1/initial_frequency;
+	double beta = 0.5 * 1./initial_frequency;
 	Linear_Time_Variation t0_functor(gamma, beta); //can be used for multiple sheets
 
 	double ksi_factor_e = 2/imp0/delta_x;
@@ -143,13 +147,28 @@ int main(){
 		clock_t start;
 		start = clock();
 
-		int timesteps = 15000 * grid_scaling / S_c ;
+		int timesteps = 10000 * grid_scaling / S_c ;
 		metasurface.simulate(timesteps, output_path, snapshotmodulo_electric, snapshotmodulo_magnetic, sample_nodes, sample_nodes);
 		free_space.simulate(timesteps, output_path, snapshotmodulo_electric, snapshotmodulo_magnetic, sample_nodes, sample_nodes);
 
 
 		double diff = ( clock() - start ) / (double) CLOCKS_PER_SEC;
 		cout << "-----finished in "<< diff/60 << " minutes." << endl;
+
+		ofstream parFile;
+		parFile.open(output_path+"parameters.txt",std::fstream::trunc);
+		parFile << " \\begin{tabular}{ l c } " << "\n";
+		parFile << "$\Delta t$ & $ " << delta_t << "$ \\" << "\n";
+		parFile << "$\Delta x$ & $" << delta_x << "$ \\" << "\n";
+		parFile << "initial frequency & $ " << initial_frequency << " $ \\" << "\n";
+		parFile << "source width & $" << width << "$\\" << "\n";
+		parFile << "source delay & $" << delay << "$\\" << "\n";
+		parFile << "source magnetic & $" << "on" << "$\\" << "\n";
+		parFile << "m & $" << m << "$\\" << "\n";
+		parFile << "a & $" << a << "$\\" << "\n";
+		parFile << "gamma & $" << gamma << "$\\" << "\n";
+		parFile << "beta & $" << beta << "$\\" << "\n";
+		parFile << " \\end{tabular}" << "\n";
 
 	}
 

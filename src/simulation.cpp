@@ -78,6 +78,7 @@ double Simulation::calculate_convolution_term_e(double q, Dispersive_Metasurface
 		summation += sheet.sigma_functor_e((q)*delta_t, (i)*delta_t) * sheet.saved_e.at(q-i);
 	}
 	double total = coefficient*(summation + half_integer_time_correction);
+	value_to_file(total, J_E_file);
 	return total;
 }
 
@@ -93,6 +94,7 @@ double Simulation::calculate_convolution_term_h(double q, Dispersive_Metasurface
 		summation += sheet.sigma_functor_h((q)*delta_t, (i)*delta_t)  * sheet.saved_h.at(q-i);
 	}
 	double total = coefficient*(summation + integer_time_correction);
+	value_to_file(total, J_H_file);
 	return total;
 }
 
