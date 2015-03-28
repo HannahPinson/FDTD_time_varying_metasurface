@@ -19,7 +19,7 @@ Simulation::Simulation(string name_, int dimension_, double S_c_, double delta_t
 	/*initialization of e and h*/
 
 	for (int i = 0; i < dimension; i++){  /* number of magnetic nodes = number of electric nodes - 1; in this way the grid ends at both sides with an electric node (so e.g. the boundary conditions can be PEC at both sides)*/
-		e.push_back (0);
+		e.push_back(0);
 	}
 	for (int i = 0; i < dimension-1; i++){ //number of magnetic nodes = number of electric nodes - 1
 		h.push_back(0);
@@ -84,11 +84,12 @@ double Simulation::calculate_convolution_term_e(double q, Dispersive_Metasurface
 
 double Simulation::calculate_convolution_term_h(double q, Dispersive_Metasurface& sheet){
 
+
 	double coefficient = - ( pow(delta_t,2) / mu0);
 	double integer_time_correction = (sheet.sigma_functor_h( q*delta_t, q*delta_t ) * sheet.saved_h.at(0))/2;
 	double summation = 0;
 
-	for (int i = 0; i < q; i++){ // i < q-1
+	for (int i = 0; i < q-1; i++){ // i < q-1
 		summation += sheet.sigma_functor_h((q)*delta_t, (i)*delta_t)  * sheet.saved_h.at(q-i);
 	}
 	double total = coefficient*(summation + integer_time_correction);
@@ -97,7 +98,6 @@ double Simulation::calculate_convolution_term_h(double q, Dispersive_Metasurface
 
 
 void Simulation::update_magnetic_once(double& timestep){
-
 
 	for (int i = 0; i < dimension-1; i++){     //loop from 0 to size-1 : there exists no node[dimension] for the h-field (to make the grid end with an electric node, see: constructor of simulation)
 		h[i] = ch_h[i] * h[i] + ch_e[i] * (e[i+1] - e[i]);
@@ -109,19 +109,22 @@ void Simulation::update_magnetic_once(double& timestep){
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){ //for all metasurfaces present
 			int location = metasurfaces.at(sheet_number).node;
-			h.at(location) += calculate_convolution_term_h(timestep, metasurfaces.at(sheet_number)); // minus sign in coefficient of calculation
 			double local_field = (h.at(location-1) + h.at(location)) / 2;
 			metasurfaces.at(sheet_number).saved_h.push_back(local_field); //save local field
+			h.at(location) += calculate_convolution_term_h(timestep, metasurfaces.at(sheet_number)); // minus sign in coefficient of calculation
 		}
 	}
+
 }
 
 
 void Simulation::update_electric_once(double& timestep){
 
+
 	for (int i = 1; i < dimension-1; i++){ // loop from 1 to size-1 : outer nodes are used for boundary conditions
 		e[i] = ce_e[i] * e[i] + ce_h[i] * (h[i] - h[i-1]);
 	}
+
 
 	//all nodes updated, without convolution terms
 	//add convolution terms and save local field
@@ -129,10 +132,9 @@ void Simulation::update_electric_once(double& timestep){
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){
 			int location = metasurfaces.at(sheet_number).node;
-			e.at(location) += calculate_convolution_term_e(timestep, metasurfaces.at(sheet_number));
 			double local_field = (e.at(location) + e.at(location+1)) / 2;
-			//double local_field = e.at(location);
 			metasurfaces.at(sheet_number).saved_e.push_back(local_field); //save local field
+			e.at(location) += calculate_convolution_term_e(timestep, metasurfaces.at(sheet_number));
 		}
 	}
 }
@@ -177,8 +179,8 @@ void Simulation::update_system_once(int& timestep){
 	//double timestep_electric = timestep + 0.5; // half integer time correction is accounted for in the calculation of the convolution integral
 
 	apply_source(timestep_magnetic, h, source_h);
-	update_magnetic_once(timestep_magnetic);
 	apply_source(timestep_electric, e, source_e);
+	update_magnetic_once(timestep_magnetic);
 	update_electric_once(timestep_electric);
 
 
