@@ -13,8 +13,11 @@ using namespace std;
 
 //ÑÑÑÑÑ simulation constructor
 
-Simulation::Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, Source source_e_, Source source_h_):
-				dimension(dimension_), name(name_), S_c(S_c_), type_of_BDC(type_of_BDC_), delta_t(delta_t_), source_e(source_e_), source_h(source_h_){
+Simulation::Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, Source source_e_, Source source_h_, Source proxy_source_, int location_):
+								dimension(dimension_), name(name_), S_c(S_c_), type_of_BDC(type_of_BDC_), delta_t(delta_t_), source_e(source_e_), source_h(source_h_),
+								proxy_source(proxy_source_), location(location_){
+
+
 
 	/*initialization of e and h*/
 
@@ -70,31 +73,33 @@ void Simulation::add_metasurfaces(vector <Dispersive_Metasurface>& metasurfaces_
 
 double Simulation::calculate_convolution_term_e(double q, Dispersive_Metasurface& sheet){
 
-	double coefficient = - ( pow(delta_t,2) / eps0);
-	double half_integer_time_correction = (sheet.sigma_functor_e(q*delta_t, q*delta_t) * sheet.saved_e.at(0))/2;
+	//e.g. at timestep 1, q will be 0
+
+	//double coefficient = - ( pow(delta_t,2) / eps0);
+	//double half_integer_time_correction = (sheet.sigma_functor_e(q*delta_t, q*delta_t) * sheet.saved_e.at(0))/2;
 	double summation = 0;
 
-	for (int i = 0; i < q; i++){
-		summation += sheet.sigma_functor_e((q)*delta_t, (i)*delta_t) * sheet.saved_e.at(q-i);
+	for (int i = 0; i < q + 1; i++){
+		summation += sheet.sigma_functor_e((q)*delta_t, (i-1)*delta_t) * sheet.saved_e.at(q-i);
 	}
-	double total = coefficient*(summation + half_integer_time_correction);
-	value_to_file(total, J_E_file);
+	double total = delta_t * summation;
 	return total;
 }
 
 
 double Simulation::calculate_convolution_term_h(double q, Dispersive_Metasurface& sheet){
 
+	//double coefficient = - ( pow(delta_t,2) / mu0);
+	//double integer_time_correction = (sheet.sigma_functor_h( q*delta_t, q*delta_t ) * sheet.saved_h.at(0))/2;
 
-	double coefficient = - ( pow(delta_t,2) / mu0);
-	double integer_time_correction = (sheet.sigma_functor_h( q*delta_t, q*delta_t ) * sheet.saved_h.at(0))/2;
+	//e.g. at timestep 1, q will be 0.5
+
 	double summation = 0;
 
-	for (int i = 0; i < q-1; i++){ // i < q-1
-		summation += sheet.sigma_functor_h((q)*delta_t, (i)*delta_t)  * sheet.saved_h.at(q-i);
+	for (int i = 0; i < q; i++){ // i < q-1
+		summation += sheet.sigma_functor_h((q)*delta_t, (i-0.5)*delta_t)  * sheet.saved_h.at(q-i);
 	}
-	double total = coefficient*(summation + integer_time_correction);
-	value_to_file(total, J_H_file);
+	double total = delta_t * summation;
 	return total;
 }
 
@@ -102,10 +107,24 @@ double Simulation::calculate_convolution_term_h(double q, Dispersive_Metasurface
 void Simulation::update_magnetic_once(double& timestep){
 
 	for (int i = 0; i < dimension-1; i++){     //loop from 0 to size-1 : there exists no node[dimension] for the h-field (to make the grid end with an electric node, see: constructor of simulation)
-		h[i] = ch_h[i] * h[i] + ch_e[i] * (e[i+1] - e[i]);
+		if (i == (location-1)){
+			double proxy_e = (*(proxy_source.ptr_source_functor))(timestep);
+			h[i] = ch_h[i] * h[i] + ch_e[i] * (proxy_e - e[i]);
+		}
+		else
+			h[i] = ch_h[i] * h[i] + ch_e[i] * (e[i+1] - e[i]);
 	}
 
+	if (metasurfaces.size() != 0){
+		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){ //for all metasurfaces present
+			int location = metasurfaces.at(sheet_number).node;
+			//double local_field = (e.at(location-1) + e.at(location)) / 2.0 / imp0;
+			double local_field = h.at(location-1);
+			metasurfaces.at(sheet_number).saved_h.push_back(local_field); //save local field
+		}
+	}
 
+	/*
 	//all nodes updated, without convolution terms
 	//add convolution terms and save local field
 	if (metasurfaces.size() != 0){
@@ -117,6 +136,7 @@ void Simulation::update_magnetic_once(double& timestep){
 			metasurfaces.at(sheet_number).saved_h.push_back(local_field); //save local field
 		}
 	}
+	 */
 
 }
 
@@ -135,10 +155,18 @@ void Simulation::update_electric_once(double& timestep){
 	if (metasurfaces.size() != 0){
 		for (int sheet_number = 0; sheet_number < metasurfaces.size(); sheet_number++){
 			int location = metasurfaces.at(sheet_number).node;
-			if (timestep > 0)
-				e.at(location) += calculate_convolution_term_e(timestep, metasurfaces.at(sheet_number));
-			double local_field = (e.at(location) + e.at(location+1)) / 2;
+
+			if (timestep > 0){
+				double first_term =  -  S_c * imp0 * delta_t / mu0 * imp0 * calculate_convolution_term_e(timestep-1, metasurfaces.at(sheet_number));
+				double second_term = -  delta_t / eps0 / imp0 * calculate_convolution_term_h(timestep-0.5, metasurfaces.at(sheet_number));
+				e.at(location) += first_term + second_term;
+				/*value_to_file(first_term, J_E_file);
+				value_to_file(second_term, J_H_file);*/
+			}
+			//double local_field = (h.at(location-1) + h.at(location)) / 2.0 * imp0;
+			double local_field = (*(proxy_source.ptr_source_functor))(timestep);
 			metasurfaces.at(sheet_number).saved_e.push_back(local_field); //save local field
+
 		}
 	}
 }
@@ -178,14 +206,15 @@ void Simulation::update_system_once(int& timestep){
 		throw error_msg;
 	}
 
-	double timestep_magnetic = timestep;
-	double timestep_electric = timestep;
-	//double timestep_electric = timestep + 0.5; // half integer time correction is accounted for in the calculation of the convolution integral
+	double time = (double)timestep;
 
-	apply_source(timestep_magnetic, h, source_h);
-	apply_source(timestep_electric, e, source_e);
-	update_magnetic_once(timestep_magnetic);
-	update_electric_once(timestep_electric);
+
+	apply_source(time, e, source_e);
+	update_electric_once(time);
+	apply_source(time, h, source_h);
+	update_magnetic_once(time);
+
+
 
 
 }

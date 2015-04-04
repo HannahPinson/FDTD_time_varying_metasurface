@@ -15,7 +15,7 @@ using namespace std;
 double Sigma_m_resonances::operator() (double time, double tau){
 	double t0 = (*(t0_functor))(time);
 	double sum = 0;
-	for (int i = 0; i < m; i++){
+	for (int i = m; i < m + 1; i++){ //!!!!!!
 		double sin_i = sin( (2*i + 1) * M_PI * tau / t0);
 		double cos_i = cos( (2*i + 1) * M_PI * tau / t0);
 		double factor_i = log(1/a) / ((2*i + 1)*M_PI);

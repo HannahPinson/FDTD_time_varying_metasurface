@@ -41,7 +41,7 @@ public:
      * \param delta_t :  discrete unit of time; delta_x follows from choice of S_c and delta_t
      * \param type_of_BDC: type of boundary condition, apart from PMLs. "ABC" = absorbing boundary condition, "PEC" = perfect electric conductor
      *  */
-    Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, Source source_e_, Source source_h_);
+    Simulation(string name_, int dimension_, double S_c_, double delta_t_, string type_of_BDC_, Source source_e_, Source source_h_, Source proxySource_, int location_);
 
     //static setup
     //! adds Source objects and a vector of Static_Material objects (3D materials); sets update coefficients at material nodes to correct values
@@ -85,8 +85,8 @@ public:
 
 private:
 
-    ofstream* J_E_file = new ofstream("/Users/Hannah_Pinson/Desktop/FDTD_metasurface_proper/clean_convolution/JE.txt");
-    ofstream* J_H_file = new ofstream("/Users/Hannah_Pinson/Desktop/FDTD_metasurface_proper/clean_convolution/JH.txt");
+    ofstream* J_E_file = new ofstream("/Users/Hannah_Pinson/Desktop/FDTD_metasurface_proper/clean_convolution/test_single_resonance/JE.txt");
+    ofstream* J_H_file = new ofstream("/Users/Hannah_Pinson/Desktop/FDTD_metasurface_proper/clean_convolution/test_single_resonance/JH.txt");
 
 
     string name;
@@ -97,6 +97,9 @@ private:
 
     Source source_e;
     Source source_h;
+
+    Source proxy_source;
+    int location;
 
 	vector<double> e; //vector containing the E field values at all spatial nodes at a certain timestep, updated at every step in the simulation
 	vector<double> h; //vector containing the H field values at all spatial nodes at a certain timestep, updated at every step in the simulation
